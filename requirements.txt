@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-rembg
+rembg==2.0.68
+onnxruntime==1.16.3
 pillow
-onnxruntime
 numpy
 scikit-image
