@@ -1,12 +1,16 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse
+import os
 import uuid
 import subprocess
-import os
+from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
 BASE = "/tmp"
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.post("/remove-bg")
 async def remove_bg(file: UploadFile = File(...)):
@@ -17,7 +21,10 @@ async def remove_bg(file: UploadFile = File(...)):
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    cmd = ["python3", "remove_bg.py", input_path, output_path]
+    # IMPORTANT → use the same python interpreter as Render’s venv
+    python_exec = os.path.join(os.getcwd(), ".venv/bin/python")
+
+    cmd = [python_exec, "remove_bg.py", input_path, output_path]
     subprocess.run(cmd, check=True)
 
     return FileResponse(output_path, media_type="image/png")
@@ -32,7 +39,9 @@ async def transform(file: UploadFile = File(...)):
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    cmd = ["python3", "transform_product.py", input_path, output_path]
+    python_exec = os.path.join(os.getcwd(), ".venv/bin/python")
+
+    cmd = [python_exec, "transform_product.py", input_path, output_path]
     subprocess.run(cmd, check=True)
 
     return FileResponse(output_path, media_type="image/jpeg")
