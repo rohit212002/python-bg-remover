@@ -3,4 +3,5 @@ rembg
 pillow 
 flask-cors
 requests
-uvicorn
+gunicorn
+onnxruntime
