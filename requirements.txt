@@ -1,1 +1,6 @@
-pip install flask rembg pillow flask-cors
+pip 
+install 
+flask 
+rembg 
+pillow 
+flask-cors
