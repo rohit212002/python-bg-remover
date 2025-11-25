@@ -1,47 +1,49 @@
-import os
-import uuid
-import subprocess
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse
+"""
+Python Background Removal Microservice
+Install: pip install flask rembg pillow flask-cors
+Run: python bg_service.py
+"""
 
-app = FastAPI()
+from flask import Flask, request, send_file, jsonify
+from flask_cors import CORS
+from rembg import remove
+from PIL import Image
+import io
+import requests
 
-BASE = "/tmp"
+app = Flask(__name__)
+CORS(app)
 
-@app.get("/health")
+@app.route('/remove-bg', methods=['POST'])
+def remove_background():
+    try:
+        # Check if URL or file upload
+        if 'url' in request.json:
+            # Download from URL
+            response = requests.get(request.json['url'])
+            input_image = Image.open(io.BytesIO(response.content))
+        elif 'image' in request.files:
+            # Direct file upload
+            input_image = Image.open(request.files['image'])
+        else:
+            return jsonify({'error': 'No image provided'}), 400
+
+        # Remove background
+        output_image = remove(input_image)
+        
+        # Convert to bytes
+        img_io = io.BytesIO()
+        output_image.save(img_io, 'PNG')
+        img_io.seek(0)
+        
+        return send_file(img_io, mimetype='image/png')
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
 def health():
-    return {"status": "ok"}
+    return jsonify({'status': 'ok'})
 
-@app.post("/remove-bg")
-async def remove_bg(file: UploadFile = File(...)):
-    file_id = str(uuid.uuid4())
-    input_path = f"{BASE}/{file_id}_input.png"
-    output_path = f"{BASE}/{file_id}_nobg.png"
-
-    with open(input_path, "wb") as f:
-        f.write(await file.read())
-
-    # IMPORTANT → use the same python interpreter as Render’s venv
-    python_exec = os.path.join(os.getcwd(), ".venv/bin/python")
-
-    cmd = [python_exec, "remove_bg.py", input_path, output_path]
-    subprocess.run(cmd, check=True)
-
-    return FileResponse(output_path, media_type="image/png")
-
-
-@app.post("/transform")
-async def transform(file: UploadFile = File(...)):
-    file_id = str(uuid.uuid4())
-    input_path = f"{BASE}/{file_id}_nobg.png"
-    output_path = f"{BASE}/{file_id}_final.jpg"
-
-    with open(input_path, "wb") as f:
-        f.write(await file.read())
-
-    python_exec = os.path.join(os.getcwd(), ".venv/bin/python")
-
-    cmd = [python_exec, "transform_product.py", input_path, output_path]
-    subprocess.run(cmd, check=True)
-
-    return FileResponse(output_path, media_type="image/jpeg")
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
